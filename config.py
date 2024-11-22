@@ -6,7 +6,7 @@ import os
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # Настройки вебхука
-WEBHOOK_HOST = 'a977-46-96-9-41.ngrok-free.app'  # Например, '0bd9-46-96-9-41.ngrok-free.app'
+WEBHOOK_HOST = 'masteryodo.pythonanywhere.com'  # Например, '0bd9-46-96-9-41.ngrok-free.app'
 WEBHOOK_PORT = 443  # Обычно порт 443 для вебхуков
 WEBHOOK_URL_PATH = '/webhook'  # Путь к вебхуку
 WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
