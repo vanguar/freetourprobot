@@ -24,6 +24,12 @@ from ryanair import Ryanair  # Убедитесь, что этот модуль 
 
 from config import TELEGRAM_TOKEN
 
+if not TELEGRAM_TOKEN:
+    logger.error("TELEGRAM_TOKEN не установлен! Проверьте файл .env и config.py.")
+else:
+    logger.info("TELEGRAM_TOKEN успешно загружен.")
+
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
