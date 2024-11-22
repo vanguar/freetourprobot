@@ -15,6 +15,7 @@ setup_bot()
 def webhook():
     if request.method == "POST":
         update = request.get_json(force=True)
+        # Передаём обновление боту для обработки
         asyncio.run(application.process_update(update))
         return 'OK'
     else:
@@ -30,7 +31,7 @@ def set_webhook():
     application.bot.set_webhook(WEBHOOK_URL)
 
 if __name__ == '__main__':
-    # Устанавливаем вебхук
+    # Устанавливаем вебхук (не требуется на PythonAnywhere, лучше сделать вручную через консоль)
     set_webhook()
     
     # Запускаем Flask-приложение (не требуется на PythonAnywhere)
