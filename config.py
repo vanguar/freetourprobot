@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
+# Загрузка переменных окружения из .env файла
+load_dotenv()
+
 # Получаем токен бота из переменных окружения
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
