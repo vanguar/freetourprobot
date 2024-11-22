@@ -759,6 +759,10 @@ async def find_flights_with_fallback(departure_airport, arrival_airport, departu
         
         return all_flights if all_flights else []
     
+    except Exception as e:
+        logger.error(f"Ошибка при поиске рейсов: {e}")
+        return []
+
 def format_flights(flights):
     messages = []
     for flight in flights:
@@ -820,9 +824,6 @@ def setup_bot():
     )
 
     application.add_handler(conv_handler)
-
-
-
 
 
 
