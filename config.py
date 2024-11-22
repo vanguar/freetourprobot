@@ -1,3 +1,5 @@
+# config.py
+
 from dotenv import load_dotenv
 load_dotenv()
 import os
@@ -6,11 +8,12 @@ import os
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # Настройки вебхука
-WEBHOOK_HOST = 'masteryodo.pythonanywhere.com'  # Например, '0bd9-46-96-9-41.ngrok-free.app'
-WEBHOOK_PORT = 443  # Обычно порт 443 для вебхуков
+WEBHOOK_HOST = 'masteryodo.pythonanywhere.com'  # Ваш домен на PythonAnywhere
+WEBHOOK_PORT = 443  # Обычно порт 443 для HTTPS
 WEBHOOK_URL_PATH = '/webhook'  # Путь к вебхуку
 WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
 
-# Локальный адрес и порт для встроенного веб-сервера
+# Эти параметры не нужны для WSGI-приложения и могут быть удалены или оставлены без использования
 FLASK_HOST = '0.0.0.0'
 FLASK_PORT = 5000
+

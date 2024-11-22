@@ -1,0 +1,7 @@
+import requests
+
+BOT_TOKEN = "2pB78xfRaoy4aYK9lYpPL1xQT9z_448NcgCePJyyjinqMf8WZ"  # Замените на токен вашего бота
+WEBHOOK_URL = "https://masteryodo.pythonanywhere.com/webhook"
+
+response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={WEBHOOK_URL}")
+print(response.json())

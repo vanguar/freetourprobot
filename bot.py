@@ -24,6 +24,12 @@ from ryanair import Ryanair  # Убедитесь, что этот модуль 
 
 from config import TELEGRAM_TOKEN
 
+from dotenv import load_dotenv
+import os
+
+# Загрузка переменных окружения
+load_dotenv()
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -319,6 +325,7 @@ countries = {
         "Лондон-Бичфилд": "LCY"
     }
 }
+
 
 # Функции генерации клавиатур и обработки состояний
 
@@ -854,3 +861,11 @@ def setup_bot():
 
 # Обратите внимание, что мы не запускаем бота здесь, так как он будет запущен из файла app.py
 # Поэтому не нужно добавлять блок if __name__ == '__main__' в этом файле
+
+
+
+
+
+
+
+
