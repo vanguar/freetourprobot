@@ -1,0 +1,24 @@
+GAW8Z5YYS6
+6WPAWH6DRQ
+DMYDF6Z6MX
+P64B5EHVYD
+6KQG4H2JRN
+KVJURVFFKJ
+2X7DKR6AMT
+FST7G7BQAW
+4RZG4PH7C8
+7CEZ2TACGZ
+
+
+2pB78xfRaoy4aYK9lYpPL1xQT9z_448NcgCePJyyjinqMf8WZ
+
+
+❤️  ngrok? We're hiring https://ngrok.com/careers                                                                                                                                                                                               Session Status                online                                                                                    Account                       tzvanguardia@gmail.com (Plan: Free)                                                       Version                       3.18.4                                                                                    Region                        Europe (eu)                                                                               Latency                       114ms                                                                                     Web Interface                 http://127.0.0.1:4040                                                                     Forwarding                    https://54a8-46-96-9-41.ngrok-free.app -> http://localhost:5000                                                                                                                                                   Connections                   ttl     opn     rt1     rt5     p50     p90                                                                             0       0       0.00    0.00    0.00    0.00                                                                                                                           
+
+
+Forwarding                    https://54a8-46-96-9-41.ngrok-free.app -> http://localhost:5000   
+
+
+Команда для запуска  
+
+ngrok http 5000
