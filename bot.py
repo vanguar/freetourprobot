@@ -24,12 +24,6 @@ from ryanair import Ryanair  # Убедитесь, что этот модуль 
 
 from config import TELEGRAM_TOKEN
 
-from dotenv import load_dotenv
-import os
-
-# Загрузка переменных окружения
-load_dotenv()
-
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -325,7 +319,6 @@ countries = {
         "Лондон-Бичфилд": "LCY"
     }
 }
-
 
 # Функции генерации клавиатур и обработки состояний
 
@@ -832,7 +825,7 @@ def format_flights(flights):
     return "\n".join(messages) if messages else "Рейсов не найдено."
 
 # Создание приложения бота
-application = Application.builder().token(TELEGRAM_TOKEN).build()
+telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
 def setup_bot():
     conv_handler = ConversationHandler(
@@ -857,10 +850,20 @@ def setup_bot():
         per_message=False
     )
 
-    application.add_handler(conv_handler)
+    telegram_app.add_handler(conv_handler)
 
-# Обратите внимание, что мы не запускаем бота здесь, так как он будет запущен из файла app.py
-# Поэтому не нужно добавлять блок if __name__ == '__main__' в этом файле
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
