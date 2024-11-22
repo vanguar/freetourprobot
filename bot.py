@@ -1,14 +1,6 @@
 # bot.py
 
 import logging
-
-# Настройка логирования
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -32,18 +24,19 @@ from ryanair import Ryanair  # Убедитесь, что этот модуль 
 
 from config import TELEGRAM_TOKEN
 
-if not TELEGRAM_TOKEN:
-    logger.error("TELEGRAM_TOKEN не установлен! Проверьте файл .env и config.py.")
-else:
-    logger.info("TELEGRAM_TOKEN успешно загружен.")
-
-
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# Проверка загрузки токена
+if not TELEGRAM_TOKEN:
+    logger.error("TELEGRAM_TOKEN не установлен! Проверьте файл .env и config.py.")
+    raise ValueError("TELEGRAM_TOKEN не установлен! Проверьте файл .env и config.py.")
+else:
+    logger.info("TELEGRAM_TOKEN успешно загружен.")
 
 # Установка локали на русский язык для отображения названий месяцев
 try:
