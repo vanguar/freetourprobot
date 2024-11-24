@@ -32,7 +32,7 @@ def set_webhook():
 
 if __name__ == '__main__':
     # Устанавливаем вебхук (не требуется на PythonAnywhere, лучше сделать вручную через консоль)
-    set_webhook()
+    # Удалить вызов set_webhook()
     
     # Запускаем Flask-приложение (не требуется на PythonAnywhere)
     app.run(host=FLASK_HOST, port=FLASK_PORT)
