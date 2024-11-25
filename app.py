@@ -2,7 +2,13 @@ import os
 import logging
 from flask import Flask, request
 from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, WSGIHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from dotenv import load_dotenv
+
+# Загрузка переменных из .env
+load_dotenv()
+
+app = Flask(__name__)
 
 # Настройка логирования
 logging.basicConfig(
@@ -11,14 +17,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Инициализация Flask-приложения
-app = Flask(__name__)
+# Инициализация Telegram бота и приложения
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+if not TELEGRAM_TOKEN:
+    logger.error("TELEGRAM_TOKEN не установлен в переменных окружения.")
+    exit(1)
 
-# Инициализация Telegram бота
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '7713206299:AAG1IujWcXQPMKvgaIeoHKmsHRGWU02-zb8')
-WEBHOOK_URL = 'https://masteryodo.pythonanywhere.com/webhook'
-
-# Создание приложения telegram бота
+bot = Bot(token=TELEGRAM_TOKEN)
 application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
 # Обработчик команды /start
@@ -35,17 +40,17 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 application.add_error_handler(error_handler)
 
-# Настройка WSGI-обработчика для Telegram бота
-application.wsgi_app = WSGIHandler()
-
 # Маршрут для вебхука
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    return application.handle(request.environ, start_response)
+    if request.method == 'POST':
+        update = Update.de_json(request.get_json(force=True), bot)
+        # Асинхронная обработка обновления
+        application.create_task(application.process_update(update))
+        return 'ok', 200
 
 if __name__ == '__main__':
-    # Установка вебхука при запуске (опционально, если вы уже установили его)
-    bot = Bot(token=TELEGRAM_TOKEN)
-    bot.set_webhook(WEBHOOK_URL)
+    # Установка вебхука (опционально, если вы уже установили его ранее)
+    bot.set_webhook('https://masteryodo.pythonanywhere.com/webhook')
     # Запуск Flask-приложения
     app.run()
