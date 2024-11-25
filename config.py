@@ -7,7 +7,7 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 print(f"Загруженный TELEGRAM_TOKEN: {TELEGRAM_TOKEN}")
 
 # Настройки вебхука
-WEBHOOK_HOST = os.getenv('WEBHOOK_HOST')  # masteryodo.pythonanywhere.com
+WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', 'masteryodo.pythonanywhere.com')  # Замените на ваш действительный домен
 WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '443'))  # Порт для вебхуков
 WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH', '/webhook')  # Путь к вебхуку
 WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
