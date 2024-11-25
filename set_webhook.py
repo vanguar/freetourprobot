@@ -1,12 +1,10 @@
-# set_webhook.py
-
 import asyncio
 from bot import application
 from config import WEBHOOK_URL
 
-async def set_wb():
+async def set_webhook():
     await application.bot.set_webhook(WEBHOOK_URL)
-    print("Вебхук установлен успешно.")
+    print("Webhook successfully set.")
 
-if __name__ == '__main__':
-    asyncio.run(set_wb())
+if __name__ == "__main__":
+    asyncio.run(set_webhook())
