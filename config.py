@@ -1,20 +1,22 @@
-# config.py
+# set_webhook.py
 
 import os
+from dotenv import load_dotenv
+import asyncio
 
-# Получаем токен бота из переменных окружения
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-print(f"Загруженный TELEGRAM_TOKEN: {TELEGRAM_TOKEN}")
+# Определяем путь к директории проекта
+project_folder = os.path.expanduser('/home/MasterYodo/freetourprobot')
+dotenv_path = os.path.join(project_folder, '.env')
 
-# Настройки вебхука
-WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', 'masteryodo.pythonanywhere.com')  # Замените на ваш действительный домен
-WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '443'))  # Порт для вебхуков
-WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH', '/webhook')  # Путь к вебхуку
-WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
+# Загружаем переменные окружения из файла .env
+load_dotenv(dotenv_path)
 
-# Локальный адрес и порт для встроенного веб-сервера (не используются на PythonAnywhere)
-FLASK_HOST = '0.0.0.0'
-FLASK_PORT = 5000
+from bot import application
+from config import WEBHOOK_URL
 
-if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_TOKEN не установлен! Проверьте файл .env и config.py.")
+async def set_wb():
+    await application.bot.set_webhook(WEBHOOK_URL)
+    print("Вебхук установлен успешно.")
+
+if __name__ == '__main__':
+    asyncio.run(set_wb())
