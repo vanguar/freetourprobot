@@ -11,6 +11,10 @@ dotenv_path = os.path.join(project_folder, '.env')
 # Загружаем переменные окружения из файла .env
 load_dotenv(dotenv_path)
 
+# Выводим переменные для проверки
+print(f"TELEGRAM_TOKEN: {os.getenv('TELEGRAM_TOKEN')}")
+print(f"WEBHOOK_URL: {os.getenv('WEBHOOK_URL')}")
+
 # Теперь импортируем bot и config
 from bot import application
 from config import WEBHOOK_URL
