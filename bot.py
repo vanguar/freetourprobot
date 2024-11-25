@@ -747,28 +747,33 @@ async def find_flights_with_fallback(departure_airport, arrival_airport, departu
                 logger.info(f"Найдены рейсы на дату: {new_departure_date}")
                 return new_flights
 
-        # Если рейсы не найдены на ближайшие даты, ищем все доступные рейсы в диапазоне цен и направлениях
-        logger.info("Рейсы не найдены на ближайшие даты. Поиск всех доступных рейсов в заданном диапазоне цен и направлениях...")
-        if return_flight_date:
-            all_flights = ryanair_api.get_cheapest_return_flights(
-                source_airport=departure_airport,
-                date_from=datetime.now().strftime("%Y-%m-%d"),
-                date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
-                return_date_from=datetime.now().strftime("%Y-%m-%d"),
-                return_date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
-                destination_airport=arrival_airport,
-                max_price=float(max_price)
-            )
-        else:
-            all_flights = ryanair_api.get_cheapest_flights(
-                airport=departure_airport,
-                date_from=datetime.now().strftime("%Y-%m-%d"),
-                date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
-                destination_airport=arrival_airport,
-                max_price=float(max_price)
-            )
-        
-        return all_flights if all_flights else []
+    except Exception as e:
+        logger.error(f"Ошибка при поиске рейсов: {e}")
+        return []
+
+    # Если рейсы не найдены на ближайшие даты, ищем все доступные рейсы в диапазоне цен и направлениях
+    logger.info("Рейсы не найдены на ближайшие даты. Поиск всех доступных рейсов в заданном диапазоне цен и направлениях...")
+    if return_flight_date:
+        all_flights = ryanair_api.get_cheapest_return_flights(
+            source_airport=departure_airport,
+            date_from=datetime.now().strftime("%Y-%m-%d"),
+            date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            return_date_from=datetime.now().strftime("%Y-%m-%d"),
+            return_date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            destination_airport=arrival_airport,
+            max_price=float(max_price)
+        )
+    else:
+        all_flights = ryanair_api.get_cheapest_flights(
+            airport=departure_airport,
+            date_from=datetime.now().strftime("%Y-%m-%d"),
+            date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            destination_airport=arrival_airport,
+            max_price=float(max_price)
+        )
+    
+    return all_flights if all_flights else []
+
     
 def format_flights(flights):
     messages = []
