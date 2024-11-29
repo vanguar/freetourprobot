@@ -7,14 +7,15 @@ from telegram import (
     ReplyKeyboardRemove,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    Bot
 )
 from telegram.ext import (
-    Application,
+    Dispatcher,
     CommandHandler,
     MessageHandler,
     ConversationHandler,
-    ContextTypes,
-    filters,
+    CallbackContext,
+    Filters,
     CallbackQueryHandler,
 )
 from datetime import datetime, timedelta
@@ -22,10 +23,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import locale
 from ryanair import Ryanair  # Убедитесь, что этот модуль установлен и работает корректно
 
-from config import TELEGRAM_TOKEN, WEBHOOK_URL
-
-import asyncio
-import threading
+from config import TELEGRAM_TOKEN
 
 # Настройка логирования
 logging.basicConfig(
@@ -65,6 +63,7 @@ except locale.Error:
     SELECTING_MAX_PRICE,
 ) = range(14)
 
+# Ваш словарь стран и городов с IATA кодами
 # Ваш словарь стран и городов с IATA кодами
 countries = {
     "Албания": {"Тирана": "TIA"},
@@ -368,10 +367,10 @@ def generate_specific_date_buttons(year, month, date_range_start, date_range_end
 
 # Функции-обработчики
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def start(update: Update, context: CallbackContext) -> int:
     logger.info(f"Получена команда /start от пользователя {update.effective_user.id}")
     reply_keyboard = [['1', '2']]
-    await update.message.reply_text(
+    update.message.reply_text(
         "Добро пожаловать в бот поиска билетов на Ryanair!\n"
         "Выберите тип рейса:\n"
         "1 - В одну сторону\n"
@@ -382,13 +381,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return SELECTING_FLIGHT_TYPE
 
-async def flight_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def flight_type(update: Update, context: CallbackContext) -> int:
     user_input = update.message.text
     if user_input not in ['1', '2']:
-        await update.message.reply_text("Пожалуйста, выберите 1 или 2.")
+        update.message.reply_text("Пожалуйста, выберите 1 или 2.")
         return SELECTING_FLIGHT_TYPE
     context.user_data['flight_type'] = user_input
-    await update.message.reply_text(
+    update.message.reply_text(
         "Выберите страну вылета:",
         reply_markup=ReplyKeyboardMarkup(
             [list(countries.keys())[i:i+3] for i in range(0, len(countries), 3)],
@@ -397,15 +396,15 @@ async def flight_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     )
     return SELECTING_DEPARTURE_COUNTRY
 
-async def departure_country(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def departure_country(update: Update, context: CallbackContext) -> int:
     country = update.message.text
     if country not in countries:
-        await update.message.reply_text("Страна не найдена! Пожалуйста, выберите из списка.")
+        update.message.reply_text("Страна не найдена! Пожалуйста, выберите из списка.")
         return SELECTING_DEPARTURE_COUNTRY
     context.user_data['departure_country'] = country
     cities = list(countries[country].keys())
     reply_keyboard = [cities[i:i+3] for i in range(0, len(cities), 3)]
-    await update.message.reply_text(
+    update.message.reply_text(
         "Выберите город вылета:",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, resize_keyboard=True
@@ -413,35 +412,35 @@ async def departure_country(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
     return SELECTING_DEPARTURE_CITY
 
-async def departure_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def departure_city(update: Update, context: CallbackContext) -> int:
     city = update.message.text
     country = context.user_data.get('departure_country')
     if city not in countries[country]:
-        await update.message.reply_text("Город не найден! Пожалуйста, выберите из списка.")
+        update.message.reply_text("Город не найден! Пожалуйста, выберите из списка.")
         return SELECTING_DEPARTURE_CITY
     context.user_data['departure_airport'] = countries[country][city]
-    await update.message.reply_text(
+    update.message.reply_text(
         "Выберите год вылета:",
         reply_markup=generate_year_buttons()
     )
     return SELECTING_DEPARTURE_YEAR
 
-async def departure_year_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def departure_year_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_year = int(query.data)
     context.user_data['departure_year'] = selected_year
-    await query.edit_message_text(text=f"Год вылета выбран: {selected_year}")
+    query.edit_message_text(text=f"Год вылета выбран: {selected_year}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите месяц вылета:",
         reply_markup=generate_month_buttons()
     )
     return SELECTING_DEPARTURE_MONTH
 
-async def departure_month_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def departure_month_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_month = int(query.data)
     context.user_data['departure_month'] = selected_month
     try:
@@ -449,27 +448,27 @@ async def departure_month_selected(update: Update, context: ContextTypes.DEFAULT
     except ValueError:
         month_name = "Неверный месяц"
         logger.error(f"Неверный номер месяца: {selected_month}")
-    await query.edit_message_text(text=f"Месяц вылета выбран: {month_name.capitalize()}")
+    query.edit_message_text(text=f"Месяц вылета выбран: {month_name.capitalize()}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите диапазон дат вылета:",
         reply_markup=generate_date_range_buttons(year=int(context.user_data['departure_year']), month=selected_month)
     )
     return SELECTING_DEPARTURE_DATE_RANGE
 
-async def departure_date_range_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def departure_date_range_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_range = query.data  # Формат "start-end"
     try:
         start_day, end_day = map(int, selected_range.split('-'))
     except ValueError:
-        await query.edit_message_text(text="Некорректный диапазон дат. Пожалуйста, выберите снова.")
+        query.edit_message_text(text="Некорректный диапазон дат. Пожалуйста, выберите снова.")
         return SELECTING_DEPARTURE_DATE_RANGE
     context.user_data['departure_date_range'] = (start_day, end_day)
-    await query.edit_message_text(text=f"Диапазон дат вылета выбран: {selected_range}")
+    query.edit_message_text(text=f"Диапазон дат вылета выбран: {selected_range}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите конкретную дату вылета:",
         reply_markup=generate_specific_date_buttons(
             year=int(context.user_data['departure_year']),
@@ -480,9 +479,9 @@ async def departure_date_range_selected(update: Update, context: ContextTypes.DE
     )
     return SELECTING_DEPARTURE_DATE
 
-async def departure_date_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def departure_date_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_date = query.data
     context.user_data['departure_date'] = selected_date
     try:
@@ -490,9 +489,9 @@ async def departure_date_selected(update: Update, context: ContextTypes.DEFAULT_
     except ValueError:
         formatted_date = "Неверная дата"
         logger.error(f"Неверный формат даты: {selected_date}")
-    await query.edit_message_text(text=f"Дата вылета выбрана: {formatted_date}")
+    query.edit_message_text(text=f"Дата вылета выбрана: {formatted_date}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите страну прилёта:",
         reply_markup=ReplyKeyboardMarkup(
             [list(countries.keys())[i:i+3] for i in range(0, len(countries), 3)],
@@ -501,15 +500,15 @@ async def departure_date_selected(update: Update, context: ContextTypes.DEFAULT_
     )
     return SELECTING_ARRIVAL_COUNTRY
 
-async def arrival_country(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def arrival_country(update: Update, context: CallbackContext) -> int:
     country = update.message.text
     if country not in countries:
-        await update.message.reply_text("Страна не найдена! Пожалуйста, выберите из списка.")
+        update.message.reply_text("Страна не найдена! Пожалуйста, выберите из списка.")
         return SELECTING_ARRIVAL_COUNTRY
     context.user_data['arrival_country'] = country
     cities = list(countries[country].keys())
     reply_keyboard = [cities[i:i+3] for i in range(0, len(cities), 3)]
-    await update.message.reply_text(
+    update.message.reply_text(
         "Выберите город прилёта:",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, resize_keyboard=True
@@ -517,44 +516,44 @@ async def arrival_country(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     return SELECTING_ARRIVAL_CITY
 
-async def arrival_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def arrival_city(update: Update, context: CallbackContext) -> int:
     city = update.message.text
     country = context.user_data.get('arrival_country')
     if city not in countries[country]:
-        await update.message.reply_text("Город не найден! Пожалуйста, выберите из списка.")
+        update.message.reply_text("Город не найден! Пожалуйста, выберите из списка.")
         return SELECTING_ARRIVAL_CITY
     context.user_data['arrival_airport'] = countries[country][city]
 
     flight_type = context.user_data.get('flight_type')
     if flight_type == '2':
-        await update.message.reply_text(
+        update.message.reply_text(
             "Выберите год обратного вылета:",
             reply_markup=generate_year_buttons()
         )
         return SELECTING_RETURN_YEAR
     else:
-        await update.message.reply_text(
+        update.message.reply_text(
             "Введите максимальную цену (EUR):",
             reply_markup=ReplyKeyboardRemove()
         )
         return SELECTING_MAX_PRICE
 
-async def return_year_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def return_year_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_year = int(query.data)
     context.user_data['return_year'] = selected_year
-    await query.edit_message_text(text=f"Год обратного вылета выбран: {selected_year}")
+    query.edit_message_text(text=f"Год обратного вылета выбран: {selected_year}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите месяц обратного вылета:",
         reply_markup=generate_month_buttons()
     )
     return SELECTING_RETURN_MONTH
 
-async def return_month_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def return_month_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_month = int(query.data)
     context.user_data['return_month'] = selected_month
     try:
@@ -562,27 +561,27 @@ async def return_month_selected(update: Update, context: ContextTypes.DEFAULT_TY
     except ValueError:
         month_name = "Неверный месяц"
         logger.error(f"Неверный номер месяца: {selected_month}")
-    await query.edit_message_text(text=f"Месяц обратного вылета выбран: {month_name.capitalize()}")
+    query.edit_message_text(text=f"Месяц обратного вылета выбран: {month_name.capitalize()}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите диапазон дат обратного вылета:",
         reply_markup=generate_date_range_buttons(year=int(context.user_data['return_year']), month=selected_month)
     )
     return SELECTING_RETURN_DATE_RANGE
 
-async def return_date_range_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def return_date_range_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_range = query.data  # Формат "start-end"
     try:
         start_day, end_day = map(int, selected_range.split('-'))
     except ValueError:
-        await query.edit_message_text(text="Некорректный диапазон дат. Пожалуйста, выберите снова.")
+        query.edit_message_text(text="Некорректный диапазон дат. Пожалуйста, выберите снова.")
         return SELECTING_RETURN_DATE_RANGE
     context.user_data['return_date_range'] = (start_day, end_day)
-    await query.edit_message_text(text=f"Диапазон дат обратного вылета выбран: {selected_range}")
+    query.edit_message_text(text=f"Диапазон дат обратного вылета выбран: {selected_range}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Выберите конкретную дату обратного вылета:",
         reply_markup=generate_specific_date_buttons(
             year=int(context.user_data['return_year']),
@@ -593,9 +592,9 @@ async def return_date_range_selected(update: Update, context: ContextTypes.DEFAU
     )
     return SELECTING_RETURN_DATE
 
-async def return_date_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def return_date_selected(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    await query.answer()
+    query.answer()
     selected_date = query.data
     context.user_data['return_date'] = selected_date
     try:
@@ -603,30 +602,30 @@ async def return_date_selected(update: Update, context: ContextTypes.DEFAULT_TYP
     except ValueError:
         formatted_date = "Неверная дата"
         logger.error(f"Неверный формат даты: {selected_date}")
-    await query.edit_message_text(text=f"Дата обратного вылета выбрана: {formatted_date}")
+    query.edit_message_text(text=f"Дата обратного вылета выбрана: {formatted_date}")
     
-    await query.message.reply_text(
+    query.message.reply_text(
         "Введите максимальную цену (EUR):",
         reply_markup=ReplyKeyboardRemove()
     )
     return SELECTING_MAX_PRICE
 
-async def max_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+def max_price(update: Update, context: CallbackContext) -> int:
     price_str = update.message.text
     try:
         price = Decimal(price_str).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         if price <= 0:
-            await update.message.reply_text("Цена должна быть положительным числом. Введите максимальную цену (EUR):")
+            update.message.reply_text("Цена должна быть положительным числом. Введите максимальную цену (EUR):")
             return SELECTING_MAX_PRICE
         context.user_data['max_price'] = price
     except:
-        await update.message.reply_text("Пожалуйста, введите корректное число для цены (EUR):")
+        update.message.reply_text("Пожалуйста, введите корректное число для цены (EUR):")
         return SELECTING_MAX_PRICE
 
-    await update.message.reply_text("Начинаю поиск рейсов...")
-    
+    update.message.reply_text("Начинаю поиск рейсов...")
+
     # Вызов функции поиска рейсов с дополнительной логикой
-    flights = await find_flights_with_fallback(
+    flights = find_flights_with_fallback(
         departure_airport=context.user_data['departure_airport'],
         arrival_airport=context.user_data['arrival_airport'],
         departure_date=context.user_data['departure_date'],
@@ -635,20 +634,20 @@ async def max_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
 
     if not flights:
-        await update.message.reply_text("К сожалению, рейсы не найдены в выбранном ценовом диапазоне и направлениях.")
+        update.message.reply_text("К сожалению, рейсы не найдены в выбранном ценовом диапазоне и направлениях.")
     else:
         response = format_flights(flights)
-        await update.message.reply_text(response, parse_mode='Markdown')
+        update.message.reply_text(response, parse_mode='Markdown')
 
     # Завершение разговора
-    await update.message.reply_text(
+    update.message.reply_text(
         "Хотите сделать новый поиск? Отправьте /start.",
         reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text(
+def cancel(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text(
         "Поиск билетов отменен. Если хотите начать заново, отправьте /start.",
         reply_markup=ReplyKeyboardRemove()
     )
@@ -656,7 +655,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Функции поиска и форматирования рейсов
 
-async def find_flights_with_fallback(departure_airport, arrival_airport, departure_date, return_flight_date, max_price):
+def find_flights_with_fallback(departure_airport, arrival_airport, departure_date, return_flight_date, max_price):
     ryanair_api = Ryanair()
     try:
         # Попытка найти рейсы на выбранную дату
@@ -774,7 +773,6 @@ async def find_flights_with_fallback(departure_airport, arrival_airport, departu
     
     return all_flights if all_flights else []
 
-    
 def format_flights(flights):
     messages = []
     for flight in flights:
@@ -809,50 +807,44 @@ def format_flights(flights):
             messages.append(message)
     return "\n".join(messages) if messages else "Рейсов не найдено."
 
-# Создание приложения бота
-application = Application.builder().token(TELEGRAM_TOKEN).build()
+# Инициализация бота и диспетчера
+bot = Bot(token=TELEGRAM_TOKEN)
+dispatcher = Dispatcher(bot, None, use_context=True)
 
 def setup_bot():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            SELECTING_FLIGHT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, flight_type)],
-            SELECTING_DEPARTURE_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_country)],
-            SELECTING_DEPARTURE_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_city)],
+            SELECTING_FLIGHT_TYPE: [MessageHandler(Filters.text & ~Filters.command, flight_type)],
+            SELECTING_DEPARTURE_COUNTRY: [MessageHandler(Filters.text & ~Filters.command, departure_country)],
+            SELECTING_DEPARTURE_CITY: [MessageHandler(Filters.text & ~Filters.command, departure_city)],
             SELECTING_DEPARTURE_YEAR: [CallbackQueryHandler(departure_year_selected)],
             SELECTING_DEPARTURE_MONTH: [CallbackQueryHandler(departure_month_selected)],
             SELECTING_DEPARTURE_DATE_RANGE: [CallbackQueryHandler(departure_date_range_selected)],
             SELECTING_DEPARTURE_DATE: [CallbackQueryHandler(departure_date_selected)],
-            SELECTING_ARRIVAL_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_country)],
-            SELECTING_ARRIVAL_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_city)],
+            SELECTING_ARRIVAL_COUNTRY: [MessageHandler(Filters.text & ~Filters.command, arrival_country)],
+            SELECTING_ARRIVAL_CITY: [MessageHandler(Filters.text & ~Filters.command, arrival_city)],
             SELECTING_RETURN_YEAR: [CallbackQueryHandler(return_year_selected)],
             SELECTING_RETURN_MONTH: [CallbackQueryHandler(return_month_selected)],
             SELECTING_RETURN_DATE_RANGE: [CallbackQueryHandler(return_date_range_selected)],
             SELECTING_RETURN_DATE: [CallbackQueryHandler(return_date_selected)],
-            SELECTING_MAX_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)],
+            SELECTING_MAX_PRICE: [MessageHandler(Filters.text & ~Filters.command, max_price)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
         per_message=False
     )
 
-    application.add_handler(conv_handler)
+    dispatcher.add_handler(conv_handler)
 
-# Инициализация бота
+# Настройка бота
 setup_bot()
 
-# Асинхронная функция инициализации
-async def initialize_bot():
-    await application.initialize()
-    await application.start()
+# Обработчик ошибок
+def error_handler(update, context):
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
-# Функция для запуска event loop в фоновом потоке
-def start_background_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(initialize_bot())
+dispatcher.add_error_handler(error_handler)
 
-# Запуск инициализации в фоновом потоке
-threading.Thread(target=start_background_loop, daemon=True).start()
-
+# Обработка обновлений будет происходить в вашем app.py при получении вебхука
 
 
