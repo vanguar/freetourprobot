@@ -3,20 +3,17 @@
 import os
 from dotenv import load_dotenv
 
-# Загрузка переменных из .env с указанием пути
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-load_dotenv(dotenv_path)
+# Загрузка переменных окружения из .env
+load_dotenv()
 
-# Получаем токен бота из переменных окружения
+# Получение токена и настроек вебхука
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-
-# Настройки вебхука
-WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', 'masteryodo.pythonanywhere.com')
-WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH', '/webhook')
+WEBHOOK_HOST = os.getenv('WEBHOOK_HOST')
+WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH')
 WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
 
-# Проверка обязательных переменных
+# Проверка, что все переменные установлены
 if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_TOKEN не установлен! Проверьте файл .env и config.py.")
-if not WEBHOOK_URL:
-    raise ValueError("WEBHOOK_URL не установлен! Проверьте файл .env и config.py.")
+    raise ValueError("TELEGRAM_TOKEN не установлен! Проверьте файл .env.")
+if not WEBHOOK_HOST or not WEBHOOK_URL_PATH:
+    raise ValueError("WEBHOOK_HOST или WEBHOOK_URL_PATH не установлены! Проверьте файл .env.")

@@ -1,19 +1,11 @@
 # app.py
 
-import os
 import logging
 from flask import Flask, request
-from telegram import Bot, Update
-from telegram.ext import Dispatcher
-from dotenv import load_dotenv
-
-from bot import dispatcher  # Импортируем dispatcher из bot.py
-
-# Загрузка переменных окружения
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-load_dotenv(dotenv_path)
-
-app = Flask(__name__)
+from telegram import Update
+from telegram.ext import Application
+from config import TELEGRAM_TOKEN, WEBHOOK_URL, WEBHOOK_URL_PATH
+from bot import setup_bot
 
 # Настройка логирования
 logging.basicConfig(
@@ -22,24 +14,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Инициализация бота
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-if not TELEGRAM_TOKEN:
-    logger.error("TELEGRAM_TOKEN не установлен в переменных окружения.")
-    exit(1)
+# Создание Flask приложения
+app = Flask(__name__)
 
-bot = Bot(token=TELEGRAM_TOKEN)
+# Создание приложения бота
+application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+# Настройка бота
+setup_bot(application)
 
 # Маршрут для вебхука
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.method == 'POST':
-        update = Update.de_json(request.get_json(force=True), bot)
-        dispatcher.process_update(update)
-        return 'ok', 200
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+async def webhook():
+    # Получаем обновление от Telegram
+    update = Update.de_json(await request.get_json(force=True), application.bot)
+    # Обрабатываем обновление
+    await application.process_update(update)
+    return 'OK', 200
 
-if __name__ == '__main__':
-    # Установка вебхука
-    bot.set_webhook('https://masteryodo.pythonanywhere.com/webhook')
-    # Запуск Flask-приложения
-    app.run()
+# Запуск приложения не требуется, так как оно будет запускаться через WSGI
