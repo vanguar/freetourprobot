@@ -4,9 +4,11 @@ from flask import Flask, request
 from telegram import Update, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from dotenv import load_dotenv
+import asyncio
 
-# Загрузка переменных из .env
-load_dotenv()
+# Загрузка переменных из .env с указанием пути
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path)
 
 app = Flask(__name__)
 
@@ -46,7 +48,7 @@ def webhook():
     if request.method == 'POST':
         update = Update.de_json(request.get_json(force=True), bot)
         # Асинхронная обработка обновления
-        application.create_task(application.process_update(update))
+        asyncio.create_task(application.process_update(update))
         return 'ok', 200
 
 if __name__ == '__main__':

@@ -2,6 +2,11 @@
 
 import os
 import logging
+from dotenv import load_dotenv
+
+# Загрузка переменных из .env с указанием пути
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path)
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -16,9 +21,9 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 logger.info(f"TELEGRAM_TOKEN: {TELEGRAM_TOKEN}")
 
 # Настройки вебхука
-WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', 'masteryodo.pythonanywhere.com')  # Замените на ваш действительный домен
-WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '443'))  # Порт для вебхуков
-WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH', '/webhook')  # Путь к вебхуку
+WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', 'masteryodo.pythonanywhere.com')
+WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', '443'))
+WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH', '/webhook')
 WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
 logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
 
