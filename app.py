@@ -1,10 +1,10 @@
+import threading
 import logging
-import asyncio
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder
 import os
-from bot import setup_bot
+from bot import setup_bot  # Импортируйте вашу функцию настройки бота
 
 # Получение переменных окружения
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -36,12 +36,14 @@ setup_bot(application)
 def webhook():
     # Получаем обновление от Telegram
     update = Update.de_json(request.get_json(force=True), application.bot)
-    
-    # Обрабатываем обновление
-    async def process_update():
-        await application.process_update(update)
-    
-    # Запускаем асинхронную обработку
-    asyncio.run(process_update())
-    
+    # Помещаем обновление в очередь обновлений бота
+    application.update_queue.put_nowait(update)
     return 'OK', 200
+
+# Функция для запуска приложения бота в отдельном потоке
+def run_application():
+    # Запускаем приложение бота с собственным циклом событий
+    application.run_polling()
+
+# Запускаем приложение бота в отдельном потоке
+threading.Thread(target=run_application, daemon=True).start()
