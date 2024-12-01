@@ -1,11 +1,20 @@
 # app.py
 
 import logging
+import asyncio
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import Application
-from config import TELEGRAM_TOKEN, WEBHOOK_URL, WEBHOOK_URL_PATH
+from telegram.ext import ApplicationBuilder
+import os  # Добавлено для использования os.getenv
 from bot import setup_bot
+
+# Получение переменных окружения
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH')
+
+# Проверка наличия необходимых переменных
+if not TELEGRAM_TOKEN or not WEBHOOK_URL_PATH:
+    raise ValueError("Необходимо установить TELEGRAM_TOKEN и WEBHOOK_URL_PATH в переменных окружения.")
 
 # Настройка логирования
 logging.basicConfig(
@@ -18,18 +27,24 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Создание приложения бота
-application = Application.builder().token(TELEGRAM_TOKEN).build()
+application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
 # Настройка бота
 setup_bot(application)
 
 # Маршрут для вебхука
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
-async def webhook():
+def webhook():
     # Получаем обновление от Telegram
-    update = Update.de_json(await request.get_json(force=True), application.bot)
-    # Обрабатываем обновление
-    await application.process_update(update)
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    
+    # Обрабатываем обновление в новом цикле событий
+    async def process():
+        await application.process_update(update)
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(process())
+    loop.close()
+    
     return 'OK', 200
-
-# Запуск приложения не требуется, так как оно будет запускаться через WSGI
