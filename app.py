@@ -37,14 +37,11 @@ def webhook():
     # Получаем обновление от Telegram
     update = Update.de_json(request.get_json(force=True), application.bot)
     
-    # Асинхронная обработка обновления
-    async def process():
+    # Обрабатываем обновление
+    async def process_update():
         await application.process_update(update)
     
-    # Создаем и запускаем цикл событий
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(process())
-    loop.close()
+    # Запускаем асинхронную обработку
+    asyncio.run(process_update())
     
     return 'OK', 200
