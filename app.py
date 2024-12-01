@@ -33,6 +33,8 @@ application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 setup_bot(application)
 
 # Маршрут для вебхука
+# app.py
+
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     # Получаем обновление от Telegram
@@ -42,6 +44,7 @@ def webhook():
     async def process():
         await application.process_update(update)
     
+    # Создаем новый цикл событий и запускаем корутину
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(process())
