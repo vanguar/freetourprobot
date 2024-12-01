@@ -1,11 +1,9 @@
-# app.py
-
 import logging
 import asyncio
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder
-import os  # Добавлено для использования os.getenv
+import os
 from bot import setup_bot
 
 # Получение переменных окружения
@@ -13,8 +11,9 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH')
 
 # Проверка наличия необходимых переменных
-if not TELEGRAM_TOKEN or not WEBHOOK_URL_PATH:
-    raise ValueError("Необходимо установить TELEGRAM_TOKEN и WEBHOOK_URL_PATH в переменных окружения.")
+if not TELEGRAM_TOKEN:
+    logging.error("TELEGRAM_TOKEN не установлен в переменных окружения.")
+    raise ValueError("TELEGRAM_TOKEN не установлен в переменных окружения.")
 
 # Настройка логирования
 logging.basicConfig(
@@ -33,8 +32,6 @@ application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 setup_bot(application)
 
 # Маршрут для вебхука
-# app.py
-
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     # Получаем обновление от Telegram
@@ -51,4 +48,3 @@ def webhook():
     loop.close()
     
     return 'OK', 200
-
