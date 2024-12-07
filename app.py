@@ -5,7 +5,6 @@ from config import WEBHOOK_URL, WEBHOOK_URL_PATH
 import logging
 import asyncio
 from telegram.ext import Application
-from functools import partial
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -16,40 +15,23 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 telegram_app = None
 
-def init_webhook(application):
-    """Инициализация webhook в синхронном контексте"""
-    async def _init():
-        await application.initialize()
-        await application.bot.set_webhook(url=WEBHOOK_URL)
-        logger.info(f"Webhook установлен на {WEBHOOK_URL}")
-    
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_init())
-    finally:
-        loop.close()
-
-def get_application():
-    """Получение или создание экземпляра приложения"""
+def setup_app():
+    """Настройка приложения с новым event loop"""
     global telegram_app
     if telegram_app is None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         telegram_app = create_application()
-        init_webhook(telegram_app)
+        try:
+            loop.run_until_complete(telegram_app.initialize())
+            loop.run_until_complete(telegram_app.bot.set_webhook(url=WEBHOOK_URL))
+            logger.info(f"Webhook установлен на {WEBHOOK_URL}")
+        finally:
+            loop.close()
     return telegram_app
 
-# Инициализируем бота 
-telegram_app = get_application()
-
-def process_update_sync(update, application):
-    """Обработка update в синхронном контексте"""
-    async def _process():
-        await application.process_update(update)
-    
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_process())
-    finally:
-        loop.close()
+# Инициализируем бот при старте
+telegram_app = setup_app()
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
@@ -60,7 +42,13 @@ def webhook():
         update = Update.de_json(request.get_json(force=True), telegram_app.bot)
         logger.info(f"Получен update: {update}")
         
-        process_update_sync(update, telegram_app)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            loop.run_until_complete(telegram_app.process_update(update))
+        finally:
+            loop.close()
         
         return 'OK', 200
     except Exception as e:

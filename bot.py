@@ -385,7 +385,7 @@ def generate_specific_date_buttons(year, month, date_range_start, date_range_end
 # Функции-обработчики
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logger.info(f"Получена команда /start от пользователя {update.effective_user.id}")
+    logger.info(f"Начат диалог с пользователем {update.effective_user.id}")
     reply_keyboard = [['1', '2']]
     await update.message.reply_text(
         "Добро пожаловать в бот поиска билетов на Ryanair!\n"
@@ -400,15 +400,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def flight_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_input = update.message.text
+    logger.info(f"Получен тип полета: {user_input}")  # Добавим логирование
+    
     if user_input not in ['1', '2']:
         await update.message.reply_text("Пожалуйста, выберите 1 или 2.")
         return SELECTING_FLIGHT_TYPE
+    
     context.user_data['flight_type'] = user_input
+    # Формируем список стран порциями по 3
+    keyboard = [list(countries.keys())[i:i+3] for i in range(0, len(countries), 3)]
+    
     await update.message.reply_text(
         "Выберите страну вылета:",
         reply_markup=ReplyKeyboardMarkup(
-            [list(countries.keys())[i:i+3] for i in range(0, len(countries), 3)],
-            one_time_keyboard=True, resize_keyboard=True
+            keyboard, one_time_keyboard=True, resize_keyboard=True
         )
     )
     return SELECTING_DEPARTURE_COUNTRY
@@ -432,9 +437,21 @@ async def departure_country(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def departure_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     city = update.message.text
     country = context.user_data.get('departure_country')
+    
+    logger.info(f"Получен город: {city}, страна: {country}")  # Добавим логирование
+    
+    if not country or country not in countries:
+        await update.message.reply_text("Пожалуйста, сначала выберите страну.")
+        return SELECTING_DEPARTURE_COUNTRY
+    
     if city not in countries[country]:
-        await update.message.reply_text("Город не найден! Пожалуйста, выберите из списка.")
+        # Покажем доступные города
+        available_cities = ", ".join(countries[country].keys())
+        await update.message.reply_text(
+            f"Город не найден! Доступные города для {country}: {available_cities}"
+        )
         return SELECTING_DEPARTURE_CITY
+    
     context.user_data['departure_airport'] = countries[country][city]
     await update.message.reply_text(
         "Выберите год вылета:",
