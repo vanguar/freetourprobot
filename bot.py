@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import locale
 from ryanair import Ryanair  # Убедитесь, что этот модуль установлен и работает корректно
+from config import TELEGRAM_TOKEN
 
 # Настройка логирования
 logging.basicConfig(
