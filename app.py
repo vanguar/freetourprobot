@@ -1,49 +1,31 @@
-import threading
-import logging
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder
-import os
-from bot import setup_bot  # Импортируйте вашу функцию настройки бота
-
-# Получение переменных окружения
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-WEBHOOK_URL_PATH = os.getenv('WEBHOOK_URL_PATH')
-
-# Проверка наличия необходимых переменных
-if not TELEGRAM_TOKEN:
-    logging.error("TELEGRAM_TOKEN не установлен в переменных окружения.")
-    raise ValueError("TELEGRAM_TOKEN не установлен в переменных окружения.")
-
-# Настройка логирования
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+from bot import application, setup_bot
+from config import WEBHOOK_URL, WEBHOOK_URL_PATH
 
 # Создание Flask приложения
 app = Flask(__name__)
 
-# Создание приложения бота
-application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+# Инициализация бота
+setup_bot()
 
-# Настройка бота
-setup_bot(application)
-
-# Маршрут для вебхука
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
-    # Получаем обновление от Telegram
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    # Помещаем обновление в очередь обновлений бота
-    application.update_queue.put_nowait(update)
-    return 'OK', 200
+    """Обработчик webhook-запросов от Telegram."""
+    try:
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.process_update(update)
+        return 'OK', 200
+    except Exception as e:
+        print(f"Ошибка при обработке update: {e}")
+        return 'Error', 500
 
-# Функция для запуска приложения бота в отдельном потоке
-def run_application():
-    # Запускаем приложение бота с собственным циклом событий
-    application.run_polling()
-
-# Запускаем приложение бота в отдельном потоке
-threading.Thread(target=run_application, daemon=True).start()
+# Установка webhook при запуске
+@app.before_first_request
+def setup_webhook():
+    """Установка webhook для бота."""
+    try:
+        application.bot.set_webhook(url=WEBHOOK_URL)
+        print(f"Webhook установлен на {WEBHOOK_URL}")
+    except Exception as e:
+        print(f"Ошибка при установке webhook: {e}")
