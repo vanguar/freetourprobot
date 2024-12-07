@@ -822,9 +822,9 @@ def format_flights(flights):
             messages.append(message)
     return "\n".join(messages) if messages else "Рейсов не найдено."
 
-# Функция для настройки бота
-
-def setup_bot(application):
+def create_application():
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -846,14 +846,6 @@ def setup_bot(application):
         fallbacks=[CommandHandler('cancel', cancel)],
         per_message=False
     )
-
-    application.add_handler(conv_handler)
-
-    # Обработчик ошибок
-    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-        logger.error(msg="Exception while handling an update:", exc_info=context.error)
-
-    application.add_error_handler(error_handler)
-
-# Обратите внимание, что мы не запускаем бота здесь, так как он будет запущен из файла app.py
-# Поэтому не нужно добавлять блок if __name__ == '__main__' в этом файле
+    
+    app.add_handler(conv_handler)
+    return app
