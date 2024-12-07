@@ -693,8 +693,7 @@ async def find_flights_with_fallback(departure_airport, arrival_airport, departu
     try:
         # Создаем сессию с отключенными прокси
         ryanair_api = Ryanair()
-        session = ryanair_api.session_manager.session
-        session.proxies = {}  # Отключаем прокси
+        ryanair_api.session_manager.session.proxies = {}  # Отключаем прокси
         
         
         try:

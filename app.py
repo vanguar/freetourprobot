@@ -18,19 +18,14 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 telegram_app = None
 
-def get_application():
-    """Инициализация приложения"""
+def create_app():
     global telegram_app
     if telegram_app is None:
         telegram_app = create_application()
-        asyncio.run(telegram_app.bot.set_webhook(url=WEBHOOK_URL))
     return telegram_app
 
-# Инициализация при старте
-telegram_app = get_application()
-
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
-def webhook():
+async def webhook():
     if request.method == 'POST':
         try:
             update = Update.de_json(request.get_json(), telegram_app.bot)
@@ -38,7 +33,12 @@ def webhook():
             logger.info(f"Получен update: {update}")
             
             # Создаем новый event loop для каждого запроса
-            asyncio.run(telegram_app.process_update(update))
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                await telegram_app.process_update(update)
+            finally:
+                loop.close()
             
             return 'ok'
         except Exception as e:
@@ -49,3 +49,6 @@ def webhook():
 @app.route('/')
 def index():
     return 'Bot is running'
+
+# Инициализация при старте
+telegram_app = create_app()
