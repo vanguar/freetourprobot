@@ -18,13 +18,20 @@ app = Flask(__name__)
 # Инициализация бота
 telegram_app = create_application()
 
-# Установка webhook при старте
+# Инициализация приложения
+async def initialize():
+    await telegram_app.initialize()
+    await telegram_app.bot.set_webhook(url=WEBHOOK_URL)
+    logger.info(f"Webhook установлен на {WEBHOOK_URL}")
+
+# Запуск инициализации в event loop
 with app.app_context():
     try:
-        telegram_app.bot.set_webhook(url=WEBHOOK_URL)
-        logger.info(f"Webhook установлен на {WEBHOOK_URL}")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(initialize())
     except Exception as e:
-        logger.error(f"Ошибка при установке webhook: {e}")
+        logger.error(f"Ошибка при инициализации: {e}")
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
@@ -43,3 +50,7 @@ def webhook():
     except Exception as e:
         logger.error(f"Ошибка при обработке update: {e}")
         return 'Error', 500
+
+@app.route('/')
+def index():
+    return 'Bot is running'
