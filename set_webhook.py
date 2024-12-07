@@ -1,12 +1,12 @@
-# set_webhook.py
-
+import asyncio
 from telegram import Bot
 from config import TELEGRAM_TOKEN, WEBHOOK_URL
 
-def set_webhook():
+async def set_webhook():
+    """Устанавливает webhook для бота."""
     bot = Bot(token=TELEGRAM_TOKEN)
-    bot.set_webhook(url=WEBHOOK_URL)
+    await bot.set_webhook(url=WEBHOOK_URL)
     print('Webhook успешно установлен.')
 
 if __name__ == '__main__':
-    set_webhook()
+    asyncio.run(set_webhook())
