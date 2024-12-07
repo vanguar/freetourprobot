@@ -28,39 +28,46 @@ def get_event_loop():
     except RuntimeError:
         event_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(event_loop)
+    
+    if event_loop.is_closed():
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+    
     return event_loop
 
-def init_telegram():
-    """Инициализация Telegram бота"""
+async def init_app():
+    """Асинхронная инициализация приложения"""
+    global telegram_app
+    if telegram_app is None:
+        telegram_app = create_application()
+        await telegram_app.initialize()
+        await telegram_app.bot.set_webhook(url=WEBHOOK_URL)
+        logger.info(f"Webhook установлен на {WEBHOOK_URL}")
+    return telegram_app
+
+def ensure_app_initialized():
+    """Убеждаемся, что приложение инициализировано"""
     global telegram_app
     if telegram_app is None:
         loop = get_event_loop()
-        telegram_app = create_application()
-        
-        try:
-            # Инициализируем приложение
-            loop.run_until_complete(telegram_app.initialize())
-            # Устанавливаем webhook
-            loop.run_until_complete(telegram_app.bot.set_webhook(url=WEBHOOK_URL))
-            logger.info(f"Webhook установлен на {WEBHOOK_URL}")
-        except Exception as e:
-            logger.error(f"Ошибка при инициализации: {e}")
+        telegram_app = loop.run_until_complete(init_app())
 
 # Инициализируем бота при старте
-init_telegram()
+ensure_app_initialized()
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     """Обработчик webhook-запросов от Telegram."""
-    if telegram_app is None:
-        init_telegram()
-        
     try:
         logger.info("Получен webhook запрос")
         update = Update.de_json(request.get_json(force=True), telegram_app.bot)
         logger.info(f"Получен update: {update}")
         
         loop = get_event_loop()
+        # Добавляем дополнительную проверку и инициализацию
+        if telegram_app is None or not telegram_app.running:
+            loop.run_until_complete(init_app())
+            
         loop.run_until_complete(telegram_app.process_update(update))
         
         return 'OK', 200
