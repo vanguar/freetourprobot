@@ -9,6 +9,14 @@ app = Flask(__name__)
 # Инициализация бота
 telegram_app = create_application()
 
+# Установка webhook при старте
+with app.app_context():
+    try:
+        telegram_app.bot.set_webhook(url=WEBHOOK_URL)
+        print(f"Webhook установлен на {WEBHOOK_URL}")
+    except Exception as e:
+        print(f"Ошибка при установке webhook: {e}")
+
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     """Обработчик webhook-запросов от Telegram."""
@@ -19,13 +27,3 @@ def webhook():
     except Exception as e:
         print(f"Ошибка при обработке update: {e}")
         return 'Error', 500
-
-# Установка webhook при запуске
-@app.before_first_request
-def setup_webhook():
-    """Установка webhook для бота."""
-    try:
-        telegram_app.bot.set_webhook(url=WEBHOOK_URL)
-        print(f"Webhook установлен на {WEBHOOK_URL}")
-    except Exception as e:
-        print(f"Ошибка при установке webhook: {e}")
