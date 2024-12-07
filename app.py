@@ -16,18 +16,26 @@ logger = logging.getLogger(__name__)
 # Создание Flask приложения
 app = Flask(__name__)
 
-# Глобальная переменная для приложения
+# Глобальные переменные
 telegram_app = None
+event_loop = None
+
+def get_event_loop():
+    """Получение или создание event loop"""
+    global event_loop
+    try:
+        event_loop = asyncio.get_event_loop()
+    except RuntimeError:
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+    return event_loop
 
 def init_telegram():
     """Инициализация Telegram бота"""
     global telegram_app
     if telegram_app is None:
+        loop = get_event_loop()
         telegram_app = create_application()
-        
-        # Создаём новый event loop для асинхронной инициализации
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         
         try:
             # Инициализируем приложение
@@ -37,8 +45,6 @@ def init_telegram():
             logger.info(f"Webhook установлен на {WEBHOOK_URL}")
         except Exception as e:
             logger.error(f"Ошибка при инициализации: {e}")
-        finally:
-            loop.close()
 
 # Инициализируем бота при старте
 init_telegram()
@@ -54,13 +60,8 @@ def webhook():
         update = Update.de_json(request.get_json(force=True), telegram_app.bot)
         logger.info(f"Получен update: {update}")
         
-        # Создаём новый event loop для асинхронной обработки
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(telegram_app.process_update(update))
-        finally:
-            loop.close()
+        loop = get_event_loop()
+        loop.run_until_complete(telegram_app.process_update(update))
         
         return 'OK', 200
     except Exception as e:
