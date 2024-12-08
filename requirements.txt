@@ -4,3 +4,4 @@ Flask[async]==3.0.0
 ryanair-py==3.0.0
 nest-asyncio==1.5.8
 aiohttp==3.8.5
+asgiref==3.7.2
