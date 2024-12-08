@@ -30,53 +30,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Глобальная переменная для хранения экземпляра приложения
-telegram_app = None
-
-def create_application():
-    """Создает и настраивает экземпляр приложения."""
-    global telegram_app
-    
-    if telegram_app is None:
-        app = Application.builder().token(TELEGRAM_TOKEN).build()
-        
-        # Создаем обработчик разговора
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('start', start)],
-            states={
-                SELECTING_FLIGHT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, flight_type)],
-                SELECTING_DEPARTURE_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_country)],
-                SELECTING_DEPARTURE_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_city)],
-                SELECTING_DEPARTURE_YEAR: [CallbackQueryHandler(departure_year_selected)],
-                SELECTING_DEPARTURE_MONTH: [CallbackQueryHandler(departure_month_selected)],
-                SELECTING_DEPARTURE_DATE_RANGE: [CallbackQueryHandler(departure_date_range_selected)],
-                SELECTING_DEPARTURE_DATE: [CallbackQueryHandler(departure_date_selected)],
-                SELECTING_ARRIVAL_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_country)],
-                SELECTING_ARRIVAL_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_city)],
-                SELECTING_RETURN_YEAR: [CallbackQueryHandler(return_year_selected)],
-                SELECTING_RETURN_MONTH: [CallbackQueryHandler(return_month_selected)],
-                SELECTING_RETURN_DATE_RANGE: [CallbackQueryHandler(return_date_range_selected)],
-                SELECTING_RETURN_DATE: [CallbackQueryHandler(return_date_selected)],
-                SELECTING_MAX_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)],
-            },
-            fallbacks=[CommandHandler('cancel', cancel)]
-        )
-        
-        # Добавляем обработчик в приложение
-        app.add_handler(conv_handler)
-
-        # Инициализируем и запускаем приложение
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(app.initialize())
-        loop.run_until_complete(app.start())
-        loop.close()
-        
-        telegram_app = app
-        logger.info("Telegram application initialized and started")
-    
-    return telegram_app
-
 # Установка локали на русский язык для отображения названий месяцев
 try:
     locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
@@ -432,7 +385,7 @@ def generate_specific_date_buttons(year, month, date_range_start, date_range_end
 # Функции-обработчики
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logger.info(f"Начат диалог с пользователем {update.effective_user.id}")
+    logger.info(f"Получена команда /start от пользователя {update.effective_user.id}")
     reply_keyboard = [['1', '2']]
     await update.message.reply_text(
         "Добро пожаловать в бот поиска билетов на Ryanair!\n"
@@ -447,20 +400,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def flight_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_input = update.message.text
-    logger.info(f"Получен тип полета: {user_input}")  # Добавим логирование
-    
     if user_input not in ['1', '2']:
         await update.message.reply_text("Пожалуйста, выберите 1 или 2.")
         return SELECTING_FLIGHT_TYPE
-    
     context.user_data['flight_type'] = user_input
-    # Формируем список стран порциями по 3
-    keyboard = [list(countries.keys())[i:i+3] for i in range(0, len(countries), 3)]
-    
     await update.message.reply_text(
         "Выберите страну вылета:",
         reply_markup=ReplyKeyboardMarkup(
-            keyboard, one_time_keyboard=True, resize_keyboard=True
+            [list(countries.keys())[i:i+3] for i in range(0, len(countries), 3)],
+            one_time_keyboard=True, resize_keyboard=True
         )
     )
     return SELECTING_DEPARTURE_COUNTRY
@@ -484,21 +432,9 @@ async def departure_country(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def departure_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     city = update.message.text
     country = context.user_data.get('departure_country')
-    
-    logger.info(f"Получен город: {city}, страна: {country}")  # Добавим логирование
-    
-    if not country or country not in countries:
-        await update.message.reply_text("Пожалуйста, сначала выберите страну.")
-        return SELECTING_DEPARTURE_COUNTRY
-    
     if city not in countries[country]:
-        # Покажем доступные города
-        available_cities = ", ".join(countries[country].keys())
-        await update.message.reply_text(
-            f"Город не найден! Доступные города для {country}: {available_cities}"
-        )
+        await update.message.reply_text("Город не найден! Пожалуйста, выберите из списка.")
         return SELECTING_DEPARTURE_CITY
-    
     context.user_data['departure_airport'] = countries[country][city]
     await update.message.reply_text(
         "Выберите год вылета:",
@@ -737,129 +673,121 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Функции поиска и форматирования рейсов
 
 async def find_flights_with_fallback(departure_airport, arrival_airport, departure_date, return_flight_date, max_price):
+    ryanair_api = Ryanair()
     try:
-        # Создаем сессию с отключенными прокси
-        ryanair_api = Ryanair()
-        ryanair_api.session_manager.session.proxies = {}  # Отключаем прокси
+        # Попытка найти рейсы на выбранную дату
+        if return_flight_date:
+            flights = ryanair_api.get_cheapest_return_flights(
+                source_airport=departure_airport,
+                date_from=departure_date,
+                date_to=departure_date,
+                return_date_from=return_flight_date,
+                return_date_to=return_flight_date,
+                destination_airport=arrival_airport,
+                max_price=float(max_price)
+            )
+        else:
+            flights = ryanair_api.get_cheapest_flights(
+                airport=departure_airport,
+                date_from=departure_date,
+                date_to=departure_date,
+                destination_airport=arrival_airport,
+                max_price=float(max_price)
+            )
         
-        
-        try:
-            # Попытка найти рейсы на выбранную дату
-            if return_flight_date:
-                flights = ryanair_api.get_cheapest_return_flights(
+        if flights:
+            return flights
+
+        # Если рейсы не найдены на выбранную дату, ищем на ближайшие 7 дней вперед и назад
+        logger.info("Рейсы на выбранную дату не найдены. Поиск на ближайшие даты...")
+        search_days = 7
+        departure_dt = datetime.strptime(departure_date, "%Y-%m-%d")
+        if return_flight_date:
+            return_dt = datetime.strptime(return_flight_date, "%Y-%m-%d")
+        else:
+            return_dt = None
+
+        # Ищем на ближайшие дни вперед и назад
+        for offset in range(1, search_days + 1):
+            # Поиск на дни вперед
+            new_departure_date = (departure_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
+            if return_dt:
+                new_return_date = (return_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
+                new_flights = ryanair_api.get_cheapest_return_flights(
                     source_airport=departure_airport,
-                    date_from=departure_date,
-                    date_to=departure_date,
-                    return_date_from=return_flight_date,
-                    return_date_to=return_flight_date,
+                    date_from=new_departure_date,
+                    date_to=new_departure_date,
+                    return_date_from=new_return_date,
+                    return_date_to=new_return_date,
                     destination_airport=arrival_airport,
                     max_price=float(max_price)
                 )
             else:
-                flights = ryanair_api.get_cheapest_flights(
+                new_flights = ryanair_api.get_cheapest_flights(
                     airport=departure_airport,
-                    date_from=departure_date,
-                    date_to=departure_date,
+                    date_from=new_departure_date,
+                    date_to=new_departure_date,
                     destination_airport=arrival_airport,
                     max_price=float(max_price)
                 )
             
-            if flights:
-                return flights
+            if new_flights:
+                logger.info(f"Найдены рейсы на дату: {new_departure_date}")
+                return new_flights
 
-            # Если рейсы не найдены на выбранную дату, ищем на ближайшие 7 дней вперед и назад
-            logger.info("Рейсы на выбранную дату не найдены. Поиск на ближайшие даты...")
-            search_days = 7
-            departure_dt = datetime.strptime(departure_date, "%Y-%m-%d")
-            if return_flight_date:
-                return_dt = datetime.strptime(return_flight_date, "%Y-%m-%d")
-            else:
-                return_dt = None
-
-            # Ищем на ближайшие дни вперед и назад
-            for offset in range(1, search_days + 1):
-                # Поиск на дни вперед
-                new_departure_date = (departure_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
-                if return_dt:
-                    new_return_date = (return_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
-                    new_flights = ryanair_api.get_cheapest_return_flights(
-                        source_airport=departure_airport,
-                        date_from=new_departure_date,
-                        date_to=new_departure_date,
-                        return_date_from=new_return_date,
-                        return_date_to=new_return_date,
-                        destination_airport=arrival_airport,
-                        max_price=float(max_price)
-                    )
-                else:
-                    new_flights = ryanair_api.get_cheapest_flights(
-                        airport=departure_airport,
-                        date_from=new_departure_date,
-                        date_to=new_departure_date,
-                        destination_airport=arrival_airport,
-                        max_price=float(max_price)
-                    )
-                
-                if new_flights:
-                    logger.info(f"Найдены рейсы на дату: {new_departure_date}")
-                    return new_flights
-
-                # Поиск на дни назад
-                new_departure_date = (departure_dt - timedelta(days=offset)).strftime("%Y-%m-%d")
-                if new_departure_date < datetime.now().strftime("%Y-%m-%d"):
-                    continue  # Не ищем в прошлом
-                if return_dt:
-                    new_return_date = (return_dt - timedelta(days=offset)).strftime("%Y-%m-%d")
-                    new_flights = ryanair_api.get_cheapest_return_flights(
-                        source_airport=departure_airport,
-                        date_from=new_departure_date,
-                        date_to=new_departure_date,
-                        return_date_from=new_return_date,
-                        return_date_to=new_return_date,
-                        destination_airport=arrival_airport,
-                        max_price=float(max_price)
-                    )
-                else:
-                    new_flights = ryanair_api.get_cheapest_flights(
-                        airport=departure_airport,
-                        date_from=new_departure_date,
-                        date_to=new_departure_date,
-                        destination_airport=arrival_airport,
-                        max_price=float(max_price)
-                    )
-                
-                if new_flights:
-                    logger.info(f"Найдены рейсы на дату: {new_departure_date}")
-                    return new_flights
-
-            # Если рейсы не найдены на ближайшие даты, ищем все доступные рейсы в диапазоне цен и направлениях
-            logger.info("Рейсы не найдены на ближайшие даты. Поиск всех доступных рейсов в заданном диапазоне цен и направлениях...")
-            if return_flight_date:
-                all_flights = ryanair_api.get_cheapest_return_flights(
+            # Поиск на дни назад
+            new_departure_date = (departure_dt - timedelta(days=offset)).strftime("%Y-%m-%d")
+            if new_departure_date < datetime.now().strftime("%Y-%m-%d"):
+                continue  # Не ищем в прошлом
+            if return_dt:
+                new_return_date = (return_dt - timedelta(days=offset)).strftime("%Y-%m-%d")
+                new_flights = ryanair_api.get_cheapest_return_flights(
                     source_airport=departure_airport,
-                    date_from=datetime.now().strftime("%Y-%m-%d"),
-                    date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
-                    return_date_from=datetime.now().strftime("%Y-%m-%d"),
-                    return_date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+                    date_from=new_departure_date,
+                    date_to=new_departure_date,
+                    return_date_from=new_return_date,
+                    return_date_to=new_return_date,
                     destination_airport=arrival_airport,
                     max_price=float(max_price)
                 )
             else:
-                all_flights = ryanair_api.get_cheapest_flights(
+                new_flights = ryanair_api.get_cheapest_flights(
                     airport=departure_airport,
-                    date_from=datetime.now().strftime("%Y-%m-%d"),
-                    date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+                    date_from=new_departure_date,
+                    date_to=new_departure_date,
                     destination_airport=arrival_airport,
                     max_price=float(max_price)
                 )
             
-            return all_flights if all_flights else []
-        except Exception as e:
-            logger.error(f"Ошибка при поиске рейсов: {e}")
-            return []
+            if new_flights:
+                logger.info(f"Найдены рейсы на дату: {new_departure_date}")
+                return new_flights
+
+        # Если рейсы не найдены на ближайшие даты, ищем все доступные рейсы в диапазоне цен и направлениях
+        logger.info("Рейсы не найдены на ближайшие даты. Поиск всех доступных рейсов в заданном диапазоне цен и направлениях...")
+        if return_flight_date:
+            all_flights = ryanair_api.get_cheapest_return_flights(
+                source_airport=departure_airport,
+                date_from=datetime.now().strftime("%Y-%m-%d"),
+                date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+                return_date_from=datetime.now().strftime("%Y-%m-%d"),
+                return_date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+                destination_airport=arrival_airport,
+                max_price=float(max_price)
+            )
+        else:
+            all_flights = ryanair_api.get_cheapest_flights(
+                airport=departure_airport,
+                date_from=datetime.now().strftime("%Y-%m-%d"),
+                date_to=(datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+                destination_airport=arrival_airport,
+                max_price=float(max_price)
+            )
+        
+        return all_flights if all_flights else []
     except Exception as e:
-        logger.error(f"Ошибка при создании Ryanair API клиента: {e}")
-        return []    
+        logger.error(f"Ошибка при поиске рейсов: {e}")
+        return []
 
 def format_flights(flights):
     messages = []
@@ -896,12 +824,8 @@ def format_flights(flights):
     return "\n".join(messages) if messages else "Рейсов не найдено."
 
 def create_application():
-    """Создает и настраивает экземпляр приложения."""
-    global telegram_app  # Добавляем глобальную переменную для хранения экземпляра приложения
-    
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    # Добавляем обработчики
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -925,10 +849,4 @@ def create_application():
     )
     
     app.add_handler(conv_handler)
-    
-    # Инициализируем и запускаем приложение
-    app.initialize()
-    app.start()
-    
-    telegram_app = app  # Сохраняем экземпляр в глобальной переменной
     return app

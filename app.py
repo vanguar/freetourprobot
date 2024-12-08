@@ -4,54 +4,70 @@ from bot import create_application
 from config import WEBHOOK_URL, WEBHOOK_URL_PATH
 import logging
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from telegram.ext import Application
 
+# Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
+# Создание Flask приложения
 app = Flask(__name__)
-telegram_app = create_application()
-executor = ThreadPoolExecutor(max_workers=1)
 
-def run_async(coro):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+# Глобальные переменные
+telegram_app = None
+event_loop = None
 
-def process_update_in_thread(update_json):
+def get_event_loop():
+    """Получение или создание event loop"""
+    global event_loop
     try:
-        update = Update.de_json(update_json, telegram_app.bot)
-        run_async(telegram_app.process_update(update))
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка при обработке update: {e}")
-        return False
+        event_loop = asyncio.get_event_loop()
+    except RuntimeError:
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+    return event_loop
+
+def init_telegram():
+    """Инициализация Telegram бота"""
+    global telegram_app
+    if telegram_app is None:
+        loop = get_event_loop()
+        telegram_app = create_application()
+        
+        try:
+            # Инициализируем приложение
+            loop.run_until_complete(telegram_app.initialize())
+            # Устанавливаем webhook
+            loop.run_until_complete(telegram_app.bot.set_webhook(url=WEBHOOK_URL))
+            logger.info(f"Webhook установлен на {WEBHOOK_URL}")
+        except Exception as e:
+            logger.error(f"Ошибка при инициализации: {e}")
+
+# Инициализируем бота при старте
+init_telegram()
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
-    if request.method == 'POST':
-        try:
-            logger.info("Получен webhook запрос")
-            update_json = request.get_json(force=True)
-            logger.info(f"Получен update: {update_json}")
-            
-            # Запускаем обработку в отдельном потоке
-            executor.submit(process_update_in_thread, update_json)
-            return 'ok'
-        except Exception as e:
-            logger.error(f"Ошибка при обработке webhook запроса: {e}")
-            return 'Error processing webhook', 500
-    return 'ok'
+    """Обработчик webhook-запросов от Telegram."""
+    if telegram_app is None:
+        init_telegram()
+        
+    try:
+        logger.info("Получен webhook запрос")
+        update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+        logger.info(f"Получен update: {update}")
+        
+        loop = get_event_loop()
+        loop.run_until_complete(telegram_app.process_update(update))
+        
+        return 'OK', 200
+    except Exception as e:
+        logger.error(f"Ошибка при обработке update: {e}")
+        return 'Error', 500
 
 @app.route('/')
 def index():
     return 'Bot is running'
-
-if __name__ == '__main__':
-    app.run()
