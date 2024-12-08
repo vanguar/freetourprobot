@@ -23,6 +23,9 @@ import locale
 from ryanair import Ryanair  # Убедитесь, что этот модуль установлен и работает корректно
 from config import TELEGRAM_TOKEN
 
+# Глобальная переменная для хранения экземпляра приложения
+telegram_app = None
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -849,8 +852,12 @@ def format_flights(flights):
     return "\n".join(messages) if messages else "Рейсов не найдено."
 
 def create_application():
+    """Создает и настраивает экземпляр приложения."""
+    global telegram_app  # Добавляем глобальную переменную для хранения экземпляра приложения
+    
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     
+    # Добавляем обработчики
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -874,4 +881,47 @@ def create_application():
     )
     
     app.add_handler(conv_handler)
+    
+    # Инициализируем и запускаем приложение
+    app.initialize()
+    app.start()
+    
+    telegram_app = app  # Сохраняем экземпляр в глобальной переменной
+    return app
+def create_application():
+    """Создает и настраивает экземпляр приложения."""
+    global telegram_app  # Добавляем глобальную переменную для хранения экземпляра приложения
+    
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    
+    # Добавляем обработчики
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+        states={
+            SELECTING_FLIGHT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, flight_type)],
+            SELECTING_DEPARTURE_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_country)],
+            SELECTING_DEPARTURE_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_city)],
+            SELECTING_DEPARTURE_YEAR: [CallbackQueryHandler(departure_year_selected)],
+            SELECTING_DEPARTURE_MONTH: [CallbackQueryHandler(departure_month_selected)],
+            SELECTING_DEPARTURE_DATE_RANGE: [CallbackQueryHandler(departure_date_range_selected)],
+            SELECTING_DEPARTURE_DATE: [CallbackQueryHandler(departure_date_selected)],
+            SELECTING_ARRIVAL_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_country)],
+            SELECTING_ARRIVAL_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_city)],
+            SELECTING_RETURN_YEAR: [CallbackQueryHandler(return_year_selected)],
+            SELECTING_RETURN_MONTH: [CallbackQueryHandler(return_month_selected)],
+            SELECTING_RETURN_DATE_RANGE: [CallbackQueryHandler(return_date_range_selected)],
+            SELECTING_RETURN_DATE: [CallbackQueryHandler(return_date_selected)],
+            SELECTING_MAX_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+        per_message=False
+    )
+    
+    app.add_handler(conv_handler)
+    
+    # Инициализируем и запускаем приложение
+    app.initialize()
+    app.start()
+    
+    telegram_app = app  # Сохраняем экземпляр в глобальной переменной
     return app
