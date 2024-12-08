@@ -23,7 +23,14 @@ import locale
 from ryanair import Ryanair  # Убедитесь, что этот модуль установлен и работает корректно
 from config import TELEGRAM_TOKEN
 
-# В начало файла, после импортов
+# Настройка логирования
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Глобальная переменная для хранения экземпляра приложения
 telegram_app = None
 
 def create_application():
@@ -33,6 +40,7 @@ def create_application():
     if telegram_app is None:
         app = Application.builder().token(TELEGRAM_TOKEN).build()
         
+        # Создаем обработчик разговора
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('start', start)],
             states={
@@ -51,22 +59,23 @@ def create_application():
                 SELECTING_RETURN_DATE: [CallbackQueryHandler(return_date_selected)],
                 SELECTING_MAX_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)],
             },
-            fallbacks=[CommandHandler('cancel', cancel)],
-            per_message=False
+            fallbacks=[CommandHandler('cancel', cancel)]
         )
         
+        # Добавляем обработчик в приложение
         app.add_handler(conv_handler)
-        app.initialize()  # Инициализируем здесь
+
+        # Инициализируем и запускаем приложение
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(app.initialize())
+        loop.run_until_complete(app.start())
+        loop.close()
+        
         telegram_app = app
+        logger.info("Telegram application initialized and started")
     
     return telegram_app
-
-# Настройка логирования
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
 
 # Установка локали на русский язык для отображения названий месяцев
 try:
