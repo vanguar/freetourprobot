@@ -826,17 +826,13 @@ def format_flights(flights):
 
 def create_application():
     """Создание и настройка приложения бота"""
-    # Инициализация хранилища для сохранения состояния бота
-    persistence = PicklePersistence(filepath="bot_persistence")
-    
-    # Создание приложения с поддержкой сохранения состояния
+    # Создание приложения
     app = Application.builder()\
         .token(TELEGRAM_TOKEN)\
-        .persistence(persistence)\
         .concurrent_updates(True)\
         .build()
     
-    # Создание обработчика диалога с сохранением состояния
+    # Создание обработчика диалога
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -883,9 +879,7 @@ def create_application():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)
             ],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
-        name="main_conversation",
-        persistent=True  # Включаем сохранение состояния диалога
+        fallbacks=[CommandHandler('cancel', cancel)]
     )
     
     app.add_handler(conv_handler)
