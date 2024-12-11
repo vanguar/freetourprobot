@@ -16,6 +16,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
     CallbackQueryHandler,
+    PicklePersistence  # Добавляем этот импорт
 )
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
