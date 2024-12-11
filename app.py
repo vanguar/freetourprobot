@@ -5,6 +5,16 @@ from config import WEBHOOK_URL, WEBHOOK_URL_PATH
 import logging
 import asyncio
 from telegram.ext import Application
+from pathlib import Path
+
+# Создаем директорию для хранения данных, если её нет
+data_dir = Path("data")
+data_dir.mkdir(exist_ok=True)
+
+# Создаем файл для хранения состояния бота, если его нет
+persistence_path = data_dir / "bot_persistence"
+if not persistence_path.exists():
+    persistence_path.touch()
 
 # Настройка логирования
 logging.basicConfig(
