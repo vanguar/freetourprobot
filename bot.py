@@ -825,10 +825,12 @@ def format_flights(flights):
 
 def create_application():
     """Создание и настройка приложения бота"""
-    # Создание приложения с базовыми настройками
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    # Создание приложения
+    app = Application.builder()\
+        .token(TELEGRAM_TOKEN)\
+        .build()
     
-    # Создание обработчика диалога без persistence
+    # Создание обработчика диалога
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
