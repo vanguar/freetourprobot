@@ -826,58 +826,27 @@ def format_flights(flights):
 
 def create_application():
     """Создание и настройка приложения бота"""
-    # Создание приложения
-    app = Application.builder()\
-        .token(TELEGRAM_TOKEN)\
-        .concurrent_updates(True)\
-        .build()
+    # Создание приложения с базовыми настройками
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    # Создание обработчика диалога
+    # Создание обработчика диалога без persistence
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            SELECTING_FLIGHT_TYPE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, flight_type)
-            ],
-            SELECTING_DEPARTURE_COUNTRY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, departure_country)
-            ],
-            SELECTING_DEPARTURE_CITY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, departure_city)
-            ],
-            SELECTING_DEPARTURE_YEAR: [
-                CallbackQueryHandler(departure_year_selected)
-            ],
-            SELECTING_DEPARTURE_MONTH: [
-                CallbackQueryHandler(departure_month_selected)
-            ],
-            SELECTING_DEPARTURE_DATE_RANGE: [
-                CallbackQueryHandler(departure_date_range_selected)
-            ],
-            SELECTING_DEPARTURE_DATE: [
-                CallbackQueryHandler(departure_date_selected)
-            ],
-            SELECTING_ARRIVAL_COUNTRY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_country)
-            ],
-            SELECTING_ARRIVAL_CITY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_city)
-            ],
-            SELECTING_RETURN_YEAR: [
-                CallbackQueryHandler(return_year_selected)
-            ],
-            SELECTING_RETURN_MONTH: [
-                CallbackQueryHandler(return_month_selected)
-            ],
-            SELECTING_RETURN_DATE_RANGE: [
-                CallbackQueryHandler(return_date_range_selected)
-            ],
-            SELECTING_RETURN_DATE: [
-                CallbackQueryHandler(return_date_selected)
-            ],
-            SELECTING_MAX_PRICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)
-            ],
+            SELECTING_FLIGHT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, flight_type)],
+            SELECTING_DEPARTURE_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_country)],
+            SELECTING_DEPARTURE_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, departure_city)],
+            SELECTING_DEPARTURE_YEAR: [CallbackQueryHandler(departure_year_selected)],
+            SELECTING_DEPARTURE_MONTH: [CallbackQueryHandler(departure_month_selected)],
+            SELECTING_DEPARTURE_DATE_RANGE: [CallbackQueryHandler(departure_date_range_selected)],
+            SELECTING_DEPARTURE_DATE: [CallbackQueryHandler(departure_date_selected)],
+            SELECTING_ARRIVAL_COUNTRY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_country)],
+            SELECTING_ARRIVAL_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, arrival_city)],
+            SELECTING_RETURN_YEAR: [CallbackQueryHandler(return_year_selected)],
+            SELECTING_RETURN_MONTH: [CallbackQueryHandler(return_month_selected)],
+            SELECTING_RETURN_DATE_RANGE: [CallbackQueryHandler(return_date_range_selected)],
+            SELECTING_RETURN_DATE: [CallbackQueryHandler(return_date_selected)],
+            SELECTING_MAX_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, max_price)]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     )
