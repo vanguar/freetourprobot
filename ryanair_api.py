@@ -1,7 +1,12 @@
 import requests
 from datetime import datetime
+import logging
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Flight:
@@ -20,7 +25,7 @@ class ReturnFlight:
 class RyanairAPI:
     def __init__(self):
         self.session = requests.Session()
-        self.base_url = "https://www.ryanair.com/api/booking/v4"
+        self.base_url = "https://services-api.ryanair.com/farfnd/3/oneWayFares"
         # Настройка прокси для PythonAnywhere
         self.session.proxies = {
             'http': 'http://proxy.server:3128',
@@ -28,9 +33,11 @@ class RyanairAPI:
         }
         # Добавление необходимых заголовков
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json',
-            'Accept-Language': 'en-US,en;q=0.9'
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Origin': 'https://www.ryanair.com',
+            'Referer': 'https://www.ryanair.com/',
         })
 
     def _format_date(self, date_str: str) -> str:
@@ -47,42 +54,45 @@ class RyanairAPI:
     ) -> List[Flight]:
         """Search for one-way flights"""
         try:
-            url = f"{self.base_url}/Availability"
+            # Новый формат URL и параметров
+            url = f"{self.base_url}"
             params = {
-                "ADT": 1,  # 1 взрослый
-                "CHD": 0,  # без детей
-                "DateIn": "",  # только в одну сторону
-                "DateOut": date_from,
-                "Origin": airport,
-                "Destination": destination_airport,
-                "FlexDaysIn": 0,
-                "FlexDaysOut": 0,
-                "RoundTrip": "false",
-                "ToUs": "AGREED"
+                "departureAirportIataCode": airport,
+                "arrivalAirportIataCode": destination_airport,
+                "outboundDepartureDateFrom": date_from,
+                "outboundDepartureDateTo": date_to,
+                "currency": "EUR"
             }
             
+            logger.info(f"Sending request to {url} with params: {params}")
             response = self.session.get(url, params=params)
-            response.raise_for_status()
+            logger.info(f"Response status code: {response.status_code}")
+            
+            if response.status_code != 200:
+                logger.error(f"Error response: {response.text}")
+                return []
+                
             data = response.json()
+            logger.info(f"Received data: {data}")
 
             flights = []
-            for flight_data in data.get('flights', []):
-                for fare in flight_data.get('fares', []):
-                    price = fare.get('amount', 0)
-                    if price <= max_price:
-                        flight = Flight(
-                            flightNumber=flight_data.get('flightNumber', ''),
-                            originFull=flight_data.get('origin', ''),
-                            destinationFull=flight_data.get('destination', ''),
-                            departureTime=flight_data.get('time', [{}])[0].get('departure', ''),
-                            price=price,
-                            currency=fare.get('currency', 'EUR')
-                        )
-                        flights.append(flight)
+            for fare in data.get('fares', []):
+                price = fare.get('price', {}).get('value', 0)
+                if price <= max_price:
+                    flight = Flight(
+                        flightNumber=fare.get('flightNumber', ''),
+                        originFull=fare.get('outbound', {}).get('departureAirport', {}).get('name', ''),
+                        destinationFull=fare.get('outbound', {}).get('arrivalAirport', {}).get('name', ''),
+                        departureTime=fare.get('outbound', {}).get('departureTime', ''),
+                        price=price,
+                        currency='EUR'
+                    )
+                    flights.append(flight)
 
+            logger.info(f"Found {len(flights)} flights within price range")
             return flights
         except Exception as e:
-            print(f"Error fetching flights: {e}")
+            logger.error(f"Error fetching flights: {e}", exc_info=True)
             return []
 
     def get_cheapest_return_flights(
@@ -97,56 +107,59 @@ class RyanairAPI:
     ) -> List[ReturnFlight]:
         """Search for return flights"""
         try:
-            url = f"{self.base_url}/Availability"
+            # URL для поиска туда-обратно
+            url = f"{self.base_url}/roundTripFares"
             params = {
-                "ADT": 1,
-                "CHD": 0,
-                "DateIn": return_date_from,
-                "DateOut": date_from,
-                "Origin": source_airport,
-                "Destination": destination_airport,
-                "FlexDaysIn": 0,
-                "FlexDaysOut": 0,
-                "RoundTrip": "true",
-                "ToUs": "AGREED"
+                "departureAirportIataCode": source_airport,
+                "arrivalAirportIataCode": destination_airport,
+                "outboundDepartureDateFrom": date_from,
+                "outboundDepartureDateTo": date_to,
+                "inboundDepartureDateFrom": return_date_from,
+                "inboundDepartureDateTo": return_date_to,
+                "currency": "EUR"
             }
             
+            logger.info(f"Sending return flight request to {url} with params: {params}")
             response = self.session.get(url, params=params)
-            response.raise_for_status()
+            logger.info(f"Response status code: {response.status_code}")
+            
+            if response.status_code != 200:
+                logger.error(f"Error response: {response.text}")
+                return []
+                
             data = response.json()
+            logger.info(f"Received return flight data: {data}")
 
             return_flights = []
-            outbound_flights = data.get('outbound', {}).get('flights', [])
-            inbound_flights = data.get('inbound', {}).get('flights', [])
+            for fare in data.get('fares', []):
+                outbound = fare.get('outbound', {})
+                inbound = fare.get('inbound', {})
+                total_price = (outbound.get('price', {}).get('value', 0) + 
+                             inbound.get('price', {}).get('value', 0))
 
-            for outbound in outbound_flights:
-                for inbound in inbound_flights:
-                    out_price = outbound.get('price', {}).get('amount', 0)
-                    in_price = inbound.get('price', {}).get('amount', 0)
-                    total_price = out_price + in_price
-
-                    if total_price <= max_price:
-                        return_flight = ReturnFlight(
-                            outbound=Flight(
-                                flightNumber=outbound.get('flightNumber', ''),
-                                originFull=outbound.get('origin', ''),
-                                destinationFull=outbound.get('destination', ''),
-                                departureTime=outbound.get('time', [{}])[0].get('departure', ''),
-                                price=out_price,
-                                currency=outbound.get('price', {}).get('currency', 'EUR')
-                            ),
-                            inbound=Flight(
-                                flightNumber=inbound.get('flightNumber', ''),
-                                originFull=inbound.get('origin', ''),
-                                destinationFull=inbound.get('destination', ''),
-                                departureTime=inbound.get('time', [{}])[0].get('departure', ''),
-                                price=in_price,
-                                currency=inbound.get('price', {}).get('currency', 'EUR')
-                            )
+                if total_price <= max_price:
+                    return_flight = ReturnFlight(
+                        outbound=Flight(
+                            flightNumber=outbound.get('flightNumber', ''),
+                            originFull=outbound.get('departureAirport', {}).get('name', ''),
+                            destinationFull=outbound.get('arrivalAirport', {}).get('name', ''),
+                            departureTime=outbound.get('departureTime', ''),
+                            price=outbound.get('price', {}).get('value', 0),
+                            currency='EUR'
+                        ),
+                        inbound=Flight(
+                            flightNumber=inbound.get('flightNumber', ''),
+                            originFull=inbound.get('departureAirport', {}).get('name', ''),
+                            destinationFull=inbound.get('arrivalAirport', {}).get('name', ''),
+                            departureTime=inbound.get('departureTime', ''),
+                            price=inbound.get('price', {}).get('value', 0),
+                            currency='EUR'
                         )
-                        return_flights.append(return_flight)
+                    )
+                    return_flights.append(return_flight)
 
+            logger.info(f"Found {len(return_flights)} return flights within price range")
             return return_flights
         except Exception as e:
-            print(f"Error fetching return flights: {e}")
+            logger.error(f"Error fetching return flights: {e}", exc_info=True)
             return []
