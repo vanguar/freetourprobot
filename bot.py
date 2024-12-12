@@ -20,7 +20,7 @@ from telegram.ext import (
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import locale
-from ryanair import Ryanair  # Убедитесь, что этот модуль установлен и работает корректно
+from ryanair_api import RyanairAPI  # Убедитесь, что этот модуль установлен и работает корректно
 from config import TELEGRAM_TOKEN
 
 # Настройка логирования
@@ -673,7 +673,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Функции поиска и форматирования рейсов
 
 async def find_flights_with_fallback(departure_airport, arrival_airport, departure_date, return_flight_date, max_price):
-    ryanair_api = Ryanair()
+    ryanair_api = RyanairAPI()
     try:
         # Попытка найти рейсы на выбранную дату
         if return_flight_date:
